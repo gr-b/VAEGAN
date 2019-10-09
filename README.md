@@ -1,4 +1,5 @@
-# AdversarialVAE implementation in Pytorch - with added interactive visualization
+# VAEGAN implementation in Pytorch - with added interactive visualization
+This repository is a simple MNIST implementation of "Autoencoding beyond pixels with a learned similarity metric".
 
 
 

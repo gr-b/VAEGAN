@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torchvision.utils import save_image
 
-from adversarialVAE import Encoder, Decoder, Discriminator
+from vaegan import Encoder, Decoder, Discriminator
 ##################################
 
 batch_size = 128
@@ -89,11 +89,9 @@ for epoch in range(num_epochs):
 		l_reconstruction = reconstruction_loss(x, x_prime)
 		l_kl             = kl_loss(mu, logvar)
 
-		loss = lossFun(x, x_prime, mu, logvar)
-		loss.backward()
 		# Backward pass
-		#loss = (l_reconstruction+l_kl)
-		#loss.backward()
+		loss = (l_reconstruction+5*l_kl)
+		loss.backward()
 		optimizer.step()
 
 	elapsed = time.time() - start
