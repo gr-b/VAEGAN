@@ -17,7 +17,7 @@ from vaegan import Encoder, Decoder, Discriminator
 
 batch_size = 128
 batch_size_test = 1000
-num_epochs = 15
+num_epochs = 1000
 
 ###################################
 # Image loading and preprocessing
@@ -174,15 +174,22 @@ for epoch in range(num_epochs):
 				l_reconstruction, l_kl, l_perceptual = ae_step(data)
 		else:
 			l_reconstruction, l_kl, l_perceptual = ae_step(data)
+	if epoch % 20 == 0:
+		torch.save(enc, './checkpoints/enc.pt')
+		torch.save(dec, './checkpoints/dec.pt')
+		torch.save(disc, './checkpoints/disc.pt')
 
 
 
 
 	elapsed = time.time() - start
-	print('epoch [{}/{}], l_recon:{:.4f}, l_kl:{:.4f}, l_disc:{:.4f}, l_percept:{:.4f}, time:{:.2f}, r:{:.4f}, f:{:.4f}'.format(
-		epoch+1, num_epochs, l_reconstruction.data, l_kl.data,
-		l_disc.data, l_perceptual.data, elapsed,
-		percent_real_pred_real, percent_fake_pred_fake))
+	try:
+		print('epoch [{}/{}], l_recon:{:.4f}, l_kl:{:.4f}, l_disc:{:.4f}, l_percept:{:.4f}, time:{:.2f}, r:{:.4f}, f:{:.4f}'.format(
+			epoch+1, num_epochs, l_reconstruction.data, l_kl.data,
+			l_disc.data, l_perceptual.data, elapsed,
+			percent_real_pred_real, percent_fake_pred_fake))
+	except:
+		print("=============== Problem Encountered")
 
 torch.save(enc, './checkpoints/enc.pt')
 torch.save(dec, './checkpoints/dec.pt')
