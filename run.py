@@ -46,6 +46,17 @@ enc_optimizer  = torch.optim.Adam(enc.parameters(), lr=1e-3)
 ae_optimizer   = torch.optim.Adam(list(enc.parameters()) + list(dec.parameters()), lr=1e-3)
 disc_optimizer = torch.optim.Adam(disc.parameters(), lr=1e-3)
 
+def enumerate_params():
+	num_params = 0
+	for model in [enc, dec, disc]:
+		for param in model.parameters():
+			if param.requires_grad:
+				num_params += param.numel()
+
+	print(f"Total trainable model parameters: {num_params}")
+enumerate_params()
+
+
 # We are using a Sigmoid layer at the end so we must use CE loss. Why?
 # ---> Rather, paper said to use CE loss.
 def reconstruction_loss(x, x_prime):
@@ -159,6 +170,9 @@ def get_disc_loss(data):
 disc_wait = 8
 
 reconstruct_epochs_left = 2 # How many epochs of reconstruction loss we use
+
+
+
 
 i = 0
 for epoch in range(num_epochs):
