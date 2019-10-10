@@ -17,7 +17,7 @@ from vaegan import Encoder, Decoder, Discriminator
 
 batch_size = 128
 batch_size_test = 1000
-num_epochs = 5
+num_epochs = 10
 
 ###################################
 # Image loading and preprocessing
@@ -89,6 +89,8 @@ def ae_step(data):
 	# Encoder/Decoder backward loss step
 	#loss = (l_reconstruction+l_kl+l_perceptual)
 	loss = (l_kl+l_perceptual)
+	if reconstruct_epochs_left > 0:
+		loss += l_reconstruction
 	loss.backward(retain_graph=True)
 	ae_optimizer.step()
 
@@ -129,6 +131,8 @@ def disc_step(data):
 	return l_disc, percent_real_pred_real, percent_fake_pred_fake
 
 disc_wait = 8
+
+reconstruct_epochs_left = 2 # How many epochs of reconstruction loss we use
 
 i = 0
 for epoch in range(num_epochs):
