@@ -25,6 +25,10 @@ class Encoder(nn.Module):
         x = F.relu(x)
         return self.mean_head(x), self.std_head(x)
 
+    def isTraining(self, flag):
+        for param in self.parameters():
+            param.requires_grad = flag
+
 class Decoder(nn.Module):
     def __init__(self):
         super(Decoder, self).__init__()
@@ -42,6 +46,10 @@ class Decoder(nn.Module):
         x = F.dropout(self.lin3(x), p=drop, training=self.training)
         x = F.relu(x)
         return self.sig(self.lin4(x))
+
+    def isTraining(self, flag):
+        for param in self.parameters():
+            param.requires_grad = flag
 
 class Discriminator(nn.Module):
     # For the discriminator, we not only want to
@@ -64,6 +72,10 @@ class Discriminator(nn.Module):
 
         y_hat = self.sig(self.lin3(features_2))
         return y_hat, features_1, features_2
+
+    def isTraining(self, flag):
+        for param in self.parameters():
+            param.requires_grad = flag
 
 
 
