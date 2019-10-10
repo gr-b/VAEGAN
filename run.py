@@ -42,7 +42,8 @@ testLoader = torch.utils.data.DataLoader(
 enc  = Encoder().cuda()
 dec  = Decoder().cuda()
 disc = Discriminator().cuda()
-ae_optimizer = torch.optim.Adam(list(enc.parameters()) + list(dec.parameters()), lr=1e-3)
+enc_optimizer  = torch.optim.Adam(enc.parameters(), lr=1e-3)
+ae_optimizer   = torch.optim.Adam(list(enc.parameters()) + list(dec.parameters()), lr=1e-3)
 disc_optimizer = torch.optim.Adam(disc.parameters(), lr=1e-3)
 
 # We are using a Sigmoid layer at the end so we must use CE loss. Why?
@@ -81,18 +82,16 @@ for epoch in range(num_epochs):
 
 		x_ = x.view(-1, 28*28)
 
+		_, features_1_real, features_2_real = disc(x_)
+		_, features_1_fake, features_2_fake = disc(x_prime)
+
 		l_reconstruction = reconstruction_loss(x_, x_prime)
 		l_kl             = kl_loss(mu, logvar)
-
-		# Perceptual loss
-		#l_perceptual = mse(features_1_real, features_1_fake) + mse(features_2_real, features_2_fake)
+		l_perceptual = mse(features_1_real, features_1_fake) + mse(features_2_real, features_2_fake)
 
 		# Encoder/Decoder backward loss step
-		loss = (l_reconstruction+l_kl)
-		#enc.isTraining(True)
-		#dec.isTraining(True)
-		#disc.isTraining(False)
-		loss.backward()
+		loss = (l_reconstruction+l_kl+l_perceptual)
+		loss.backward(retain_graph=True)
 		ae_optimizer.step()
 
 		#########################
@@ -121,9 +120,6 @@ for epoch in range(num_epochs):
 		# But this is better expressed by perceptual loss
 
 		# Discriminator step
-		#enc.isTraining(False)
-		#dec.isTraining(False)
-		#disc.isTraining(True)
 		l_disc.backward()
 		disc_optimizer.step()
 
@@ -132,9 +128,9 @@ for epoch in range(num_epochs):
 		percent_fake_pred_fake = np.mean(disc_y_hat_fake.cpu().detach().numpy() < 0.5)
 
 	elapsed = time.time() - start
-	print('epoch [{}/{}], l_recon:{:.4f}, l_kl:{:.4f}, l_disc:{:.4f}, time:{:.2f}, real:{:.4f}, fake:{:.4f}'.format(
+	print('epoch [{}/{}], l_recon:{:.4f}, l_kl:{:.4f}, l_disc:{:.4f}, l_percept:{:.4f}, time:{:.2f}, r:{:.4f}, f:{:.4f}'.format(
 		epoch+1, num_epochs, l_reconstruction.data, l_kl.data,
-		l_disc.data, elapsed,
+		l_disc.data, l_perceptual.data, elapsed,
 		percent_real_pred_real, percent_fake_pred_fake))
 
 torch.save(enc, './checkpoints/enc.pt')
