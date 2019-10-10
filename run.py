@@ -67,65 +67,80 @@ def sample(mu, logvar):
 ### Actual Training Loop ###
 ############################
 
+def ae_step(data):
+	x, _ = data # Each 'data' is an image, label pair
+	x = Variable(x).cuda() # Input image must be a tensor and moved to the GPU
+	ae_optimizer.zero_grad()
+
+	# Forward pass
+	mu, logvar = enc(x)
+	z = sample(mu, logvar)
+	x_prime = dec(z)
+
+	x_ = x.view(-1, 28*28)
+
+	_, features_1_real, features_2_real = disc(x_)
+	_, features_1_fake, features_2_fake = disc(x_prime)
+
+	l_reconstruction = reconstruction_loss(x_, x_prime)
+	l_kl             = kl_loss(mu, logvar)
+	l_perceptual = mse(features_1_real, features_1_fake) + mse(features_2_real, features_2_fake)
+
+	# Encoder/Decoder backward loss step
+	#loss = (l_reconstruction+l_kl+l_perceptual)
+	loss = (l_kl+l_perceptual)
+	loss.backward(retain_graph=True)
+	ae_optimizer.step()
+
+	return l_reconstruction, l_kl, l_perceptual
+
+
+def disc_step(data):
+	x, _ = data # Each 'data' is an image, label pair
+	x = Variable(x).cuda() # Input image must be a tensor and moved to the GPU
+	disc_optimizer.zero_grad()
+	# Forward pass
+	mu, logvar = enc(x)
+	z = sample(mu, logvar)
+	x_prime = dec(z)
+
+	x_ = x.view(-1, 28*28)
+
+	disc_y_hat_real, features_1_real, features_2_real = disc(x_)
+	disc_y_hat_fake, features_1_fake, features_2_fake = disc(x_prime)
+
+	disc_y_hat_real = disc_y_hat_real.view(disc_y_hat_real.shape[0])
+	disc_y_hat_fake = disc_y_hat_fake.view(disc_y_hat_fake.shape[0])
+
+	ones  = torch.ones(disc_y_hat_real.shape[0]).cuda()
+	zeros = torch.zeros(disc_y_hat_fake.shape[0]).cuda()
+
+	l_disc    = mse(disc_y_hat_real, ones) + mse(disc_y_hat_fake, zeros)
+	#l_ae_fake = mse(disc_y_hat_fake, ones) # Autoencoder should construct images that fool the disc
+	# But this is better expressed by perceptual loss
+
+	# Discriminator step
+	l_disc.backward()
+	disc_optimizer.step()
+
+	percent_real_pred_real = np.mean(disc_y_hat_real.cpu().detach().numpy() > 0.5)
+	percent_fake_pred_fake = np.mean(disc_y_hat_fake.cpu().detach().numpy() < 0.5)
+
+	return l_disc, percent_real_pred_real, percent_fake_pred_fake
+
+disc_wait = 8
+
+i = 0
 for epoch in range(num_epochs):
 	# TrainLoader is a generator
 	start = time.time()
+	i = 0
 	for data in trainLoader:
-		x, _ = data # Each 'data' is an image, label pair
-		x = Variable(x).cuda() # Input image must be a tensor and moved to the GPU
-		ae_optimizer.zero_grad()
-
-		# Forward pass
-		mu, logvar = enc(x)
-		z = sample(mu, logvar)
-		x_prime = dec(z)
-
-		x_ = x.view(-1, 28*28)
-
-		_, features_1_real, features_2_real = disc(x_)
-		_, features_1_fake, features_2_fake = disc(x_prime)
-
-		l_reconstruction = reconstruction_loss(x_, x_prime)
-		l_kl             = kl_loss(mu, logvar)
-		l_perceptual = mse(features_1_real, features_1_fake) + mse(features_2_real, features_2_fake)
-
-		# Encoder/Decoder backward loss step
-		loss = (l_reconstruction+l_kl+l_perceptual)
-		loss.backward(retain_graph=True)
-		ae_optimizer.step()
-
-		#########################
-		# Discrimator stuff
-		#########################
-
-		disc_optimizer.zero_grad()
-		# Forward pass
-		mu, logvar = enc(x)
-		z = sample(mu, logvar)
-		x_prime = dec(z)
-
-		x_ = x.view(-1, 28*28)
-
-		disc_y_hat_real, features_1_real, features_2_real = disc(x_)
-		disc_y_hat_fake, features_1_fake, features_2_fake = disc(x_prime)
-
-		disc_y_hat_real = disc_y_hat_real.view(disc_y_hat_real.shape[0])
-		disc_y_hat_fake = disc_y_hat_fake.view(disc_y_hat_fake.shape[0])
-
-		ones  = torch.ones(disc_y_hat_real.shape[0]).cuda()
-		zeros = torch.zeros(disc_y_hat_fake.shape[0]).cuda()
-
-		l_disc    = mse(disc_y_hat_real, ones) + mse(disc_y_hat_fake, zeros)
-		#l_ae_fake = mse(disc_y_hat_fake, ones) # Autoencoder should construct images that fool the disc
-		# But this is better expressed by perceptual loss
-
-		# Discriminator step
-		l_disc.backward()
-		disc_optimizer.step()
-
-
-		percent_real_pred_real = np.mean(disc_y_hat_real.cpu().detach().numpy() > 0.5)
-		percent_fake_pred_fake = np.mean(disc_y_hat_fake.cpu().detach().numpy() < 0.5)
+		i += 1
+		if i % disc_wait == 0: # ae goes more times than disc
+			l_disc, percent_real_pred_real, percent_fake_pred_fake = disc_step(data)
+		else:
+			l_reconstruction, l_kl, l_perceptual = ae_step(data)
 
 	elapsed = time.time() - start
 	print('epoch [{}/{}], l_recon:{:.4f}, l_kl:{:.4f}, l_disc:{:.4f}, l_percept:{:.4f}, time:{:.2f}, r:{:.4f}, f:{:.4f}'.format(
