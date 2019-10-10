@@ -17,7 +17,7 @@ from vaegan import Encoder, Decoder, Discriminator
 
 batch_size = 128
 batch_size_test = 1000
-num_epochs = 10
+num_epochs = 100
 
 ###################################
 # Image loading and preprocessing
@@ -132,7 +132,7 @@ def disc_step(data):
 
 disc_wait = 8
 
-reconstruct_epochs_left = 2 # How many epochs of reconstruction loss we use
+reconstruct_epochs_left = 4 # How many epochs of reconstruction loss we use
 
 i = 0
 for epoch in range(num_epochs):
